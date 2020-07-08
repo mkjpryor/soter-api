@@ -1,0 +1,6 @@
+.python-version
+.eggs
+__pycache__
+*.egg-info
+kubeconfig
+settings.yaml
