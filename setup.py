@@ -28,15 +28,23 @@ if __name__ == "__main__":
         zip_safe = False,
         install_requires = [
             'django-flexi-settings',
+            'wrapt',
             'quart',
             'httpx',
             'pydantic',
             'python-dateutil',
             'jsonrpc-asyncio',
+            'kubernetes_asyncio',
         ],
         entry_points = {
-            'soter.api.scanners': [
-                'anchore-engine = soter.api.scanners.anchore:AnchoreEngine',
-            ]
+            # Entrypoint defining modules containing RPC methods to use
+            'soter.api.rpc': [
+                'info = soter.api.info',
+                'image = soter.api.image.rpc',
+            ],
+            # Entrypoint defining the scanner types available in the core package
+            'soter.api.scanner': [
+                'anchore-engine = soter.api.image.scanner.anchore:AnchoreEngine',
+            ],
         }
     )

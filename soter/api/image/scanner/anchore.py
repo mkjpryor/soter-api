@@ -6,9 +6,12 @@ import asyncio
 
 import httpx
 
+from ...models import ScannerStatus, Severity
+from ...exceptions import ScannerUnavailable
+
 from .base import ImageScanner
-from ..models import ScannerStatus, Severity, PackageType, ImageVulnerability
-from ..exceptions import ScannerUnavailable
+from ..models import PackageType, ImageVulnerability
+from ..exceptions import NoVulnerabilityDataAvailable
 
 
 class AnchoreEngine(ImageScanner):
@@ -57,7 +60,7 @@ class AnchoreEngine(ImageScanner):
         else:
             raise ScannerUnavailable(analyzer_state['status_message'])
 
-    async def image_submit(self, image):
+    async def submit(self, image):
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f'{self.url}/images',
@@ -76,13 +79,16 @@ class AnchoreEngine(ImageScanner):
         response.raise_for_status()
         return True
 
-    async def image_report(self, image):
+    async def report(self, image):
         """
-        Return a vulnerability report for the given image.
+        Return a list of vulnerabilities for the given image.
         """
         async with httpx.AsyncClient() as client:
             vuln_url = f'{self.url}/images/{image.digest}/vuln/all'
             response = await client.get(vuln_url, auth = self.auth)
+        # A 404 indicates no data available
+        if response.status_code == 404:
+            raise NoVulnerabilityDataAvailable('image has not been analyzed')
         response.raise_for_status()
         return (
             ImageVulnerability(

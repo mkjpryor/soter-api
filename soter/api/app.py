@@ -2,56 +2,20 @@
 Module providing the ASGI app for soter-image-scan.
 """
 
-import asyncio
+from pkg_resources import iter_entry_points
 
-from http import HTTPStatus
-from quart import Quart, request, jsonify
+from quart import Quart
 from quart.exceptions import HTTPException
 
 from jsonrpc.dispatch import Dispatcher
 from jsonrpc.adapter.quart import http_blueprint
 
-from .models import ScannerStatus
-from .conf import settings
-
 
 dispatcher = Dispatcher()
-
-
-async def get_scanner_status(scanner):
-    """
-    Get the status of the scanner, dealing with exceptions.
-    """
-    try:
-        return (await scanner.status())
-    except Exception as exc:
-        return ScannerStatus(
-            name = scanner.name,
-            kind = scanner.kind,
-            version = 'unknown',
-            available = False,
-            message = str(exc)
-        )
-
-
-@dispatcher.register
-async def status():
-    """
-    Get information about the status of the system.
-    """
-    # Fetch the status of each scanner concurrently
-    tasks = [get_scanner_status(s) for s in settings.scanners]
-    statuses = await asyncio.gather(*tasks)
-    return dict(
-        # We are available if at least one backend is available
-        available = any(s.available for s in statuses),
-        scanners = statuses
-    )
-
-
-# Register the image methods with the dispatcher
-from . import image
-dispatcher.register_all(image, prefix = "image")
+# Add all the configured RPC modules to the dispatcher
+# Using an entrypoint allows packages to provide additional, namespaced methods
+for ep in iter_entry_points('soter.api.rpc'):
+    dispatcher.register_all(ep.load(), prefix = ep.name)
 
 
 async def handle_http_exception(exc):

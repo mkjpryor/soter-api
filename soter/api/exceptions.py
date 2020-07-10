@@ -25,17 +25,9 @@ class ScannerUnavailable(ScannerError):
     message = "Scanner unavailable"
 
 
-class ImageNotFound(ScannerError):
+class NoSuitableScanners(ScannerError):
     """
-    Raised when an image cannot be found.
+    Raised when there are no suitable scanners for an operation.
     """
-    code = 200
-    message = "Image not found"
-
-
-class VulnerabilityDataUnavailable(ScannerError):
-    """
-    Raised when vulnerability data is not available for an image.
-    """
-    code = 201
-    message = "Vulnerability data not available"
+    code = 101
+    message = "No suitable scanners"

@@ -10,7 +10,8 @@ from dateutil.parser import parse as dateutil_parse
 import httpx
 import httpcore
 
-from .conf import settings
+from ..conf import settings
+
 from .exceptions import ImageNotFound
 
 
@@ -108,7 +109,8 @@ async def fetch_image(image):
                     'Accept': 'application/vnd.docker.distribution.manifest.v2+json'
                 }
             )
-        if response.status_code == 404:
+        # When a repository isn't accessible, the second response is a 401 (could exist but be private)
+        if response.status_code in {401, 404}:
             raise ImageNotFound(original_image)
         response.raise_for_status()
         # The digest is in a response header
