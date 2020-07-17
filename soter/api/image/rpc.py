@@ -63,7 +63,7 @@ async def submit(scanners, image):
             submissions.append(dict(name = scanner.name, success = True))
     result = dict(image_digest = image.full_digest, scanners = submissions)
     # If submission failed for all scanners, raise the result as an error, otherwise return it
-    if any(s['success'] for s in submissions):
+    if all(s['success'] for s in submissions):
         return result
     else:
         raise ImageSubmissionFailed(result)

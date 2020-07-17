@@ -83,13 +83,25 @@ class AnchoreEngine(ImageScanner):
         """
         Return a list of vulnerabilities for the given image.
         """
-        async with httpx.AsyncClient() as client:
-            vuln_url = f'{self.url}/images/{image.digest}/vuln/all'
-            response = await client.get(vuln_url, auth = self.auth)
-        # A 404 indicates no data available
-        if response.status_code == 404:
-            raise NoVulnerabilityDataAvailable('image has not been analyzed')
-        response.raise_for_status()
+        async with httpx.AsyncClient(auth = self.auth) as client:
+            image_url = f'{self.url}/images/{image.digest}'
+            # Fetch the vulnerabilities
+            vuln_response = await client.get(f'{image_url}/vuln/all')
+            # A 404 indicates no data available
+            # Check if there is a scan in progress or if the image has not been submitted
+            if vuln_response.status_code == 404:
+                detail_response = await client.get(image_url)
+                if detail_response.status_code == 200:
+                    # If the response was successful, the image must be being analysed
+                    raise NoVulnerabilityDataAvailable('analysis in progress')
+                elif detail_response.status_code == 404:
+                    # A 404 means the image was never submitted
+                    raise NoVulnerabilityDataAvailable('image has not been submitted')
+                # If there are any other errors with the response, raise them
+                else:
+                    detail_response.raise_for_status()
+            # Raise any other errors with the response
+            vuln_response.raise_for_status()
         return (
             ImageVulnerability(
                 id = vuln['vuln'],
@@ -109,5 +121,5 @@ class AnchoreEngine(ImageScanner):
                 ),
                 fix_version = vuln['fix'] if vuln['fix'] != "None" else None
             )
-            for vuln in response.json()['vulnerabilities']
+            for vuln in vuln_response.json()['vulnerabilities']
         )

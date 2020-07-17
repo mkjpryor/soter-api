@@ -32,7 +32,7 @@ class ScannerStatus(BaseModel):
 @total_ordering
 class Severity(Enum):
     """
-    Enum of possible severity levels for vulnerabilities.
+    Enum of possible severity levels for an issue.
     """
     NEGLIGIBLE = "Negligible"
     LOW = "Low"
