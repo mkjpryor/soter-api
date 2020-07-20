@@ -62,3 +62,16 @@ class Issue(BaseModel):
     reported_by: List[constr(min_length = 1)]
     #: Additional scanner-specific details for the error
     detail: Any
+
+
+class Report(BaseModel):
+    """
+    Base class for all report classes.
+    """
+    #: List of issues
+    issues: List[Issue]
+
+    @validator('issues')
+    def sort_issues(cls, issues):
+        # Ensure that the issues are sorted by severity from highest to lowest
+        return sorted(issues, key = lambda i: i.severity, reverse = True)

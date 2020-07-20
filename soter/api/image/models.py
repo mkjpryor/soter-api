@@ -9,7 +9,7 @@ from typing import Optional
 
 from pydantic import BaseModel, HttpUrl, validator
 
-from ..models import Severity
+from ..models import Severity, Report
 
 
 class PackageType(Enum):
@@ -54,3 +54,11 @@ class ImageVulnerability(BaseModel):
                 if not v:
                     raise ValueError('required for non-OS packages')
         return v
+
+
+class ImageReport(Report):
+    """
+    Class for a security report for an image.
+    """
+    #: The digest of the image
+    image_digest: str

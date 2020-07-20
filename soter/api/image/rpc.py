@@ -18,6 +18,7 @@ from ..models import Issue, Severity
 from .docker import fetch_image
 from .scanner.base import ImageScanner
 from .exceptions import ImageSubmissionFailed, NoVulnerabilityDataAvailable
+from .models import ImageReport
 
 
 __all__ = ['submit', 'report']
@@ -144,4 +145,4 @@ async def report(scanners, image):
         )
         for group in vulnerabilities.values()
     ])
-    return dict(image_digest = image.full_digest, issues = issues)
+    return ImageReport(image_digest = image.full_digest, issues = issues)
