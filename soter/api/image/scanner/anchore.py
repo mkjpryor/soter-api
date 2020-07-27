@@ -43,22 +43,26 @@ class AnchoreEngine(ImageScanner):
             )
         except StopIteration:
             raise ScannerUnavailable('could not detect status')
-        if analyzer_state['status']:
-            return ScannerStatus(
-                name = self.name,
-                kind = self.kind,
-                version = analyzer_state['service_detail']['version'],
-                available = True,
-                message = analyzer_state['status_message'],
-                properties = {
-                    # Use the last sync time of each group as a property
-                    f"{group['name']}/last-sync": group['last_sync']
-                    for feed in feeds.json() if feed['enabled']
-                    for group in feed['groups'] if group['enabled']
-                }
-            )
+        version = analyzer_state['service_detail']['version']
+        available = analyzer_state['status']
+        message = analyzer_state['status_message']
+        if available:
+            properties = {
+                # Use the last sync time of each group as a property
+                f"{group['name']}/last-sync": group['last_sync']
+                for feed in feeds.json() if feed['enabled']
+                for group in feed['groups'] if group['enabled']
+            }
         else:
-            raise ScannerUnavailable(analyzer_state['status_message'])
+            properties = None
+        return ScannerStatus(
+            name = self.name,
+            kind = self.kind,
+            version = version,
+            available = available,
+            message = message,
+            properties = properties
+        )
 
     async def submit(self, image):
         async with httpx.AsyncClient() as client:

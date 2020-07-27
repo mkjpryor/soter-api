@@ -3,37 +3,22 @@ Module containing JSON-RPC methods for handling images.
 """
 
 import asyncio
-import functools
-import inspect
-import itertools
-
-import wrapt
 
 from jsonrpc.exceptions import JsonRpcException
 
 from ..conf import settings
+from ..util import injects, exception_as_issue
 from ..exceptions import NoSuitableScanners
 from ..models import Issue, Severity
 
 from .docker import fetch_image
 from .scanner.base import ImageScanner
-from .exceptions import ImageSubmissionFailed, NoVulnerabilityDataAvailable
+from .exceptions import ImageSubmissionFailed
 from .models import ImageReport
 
 
+# This defines the methods available to the JSON-RPC dispatcher
 __all__ = ['submit', 'report']
-
-
-def injects(n):
-    """
-    Decorator for a decorator that injects ``n`` arguments into the wrapped function
-    at the start of the argspec that ensures that the decorated function has the
-    correct signature.
-    """
-    def modify_argspec(wrapped):
-        argspec = inspect.getargspec(wrapped)
-        return argspec._replace(args = argspec.args[n:])
-    return wrapt.decorator(adapter = wrapt.adapter_factory(modify_argspec))
 
 
 @injects(1)
@@ -43,7 +28,7 @@ def with_image_scanners(wrapped, instance, args, kwargs):
     """
     scanners = [s for s in settings.scanners if isinstance(s, ImageScanner)]
     if not scanners:
-        raise NoSuitableScanners('No image scanners configured')
+        raise NoSuitableScanners('no image scanners configured')
     return wrapped(scanners, *args, **kwargs)
 
 
@@ -58,7 +43,9 @@ async def submit(scanners, image):
     results = await asyncio.gather(*tasks, return_exceptions = True)
     submissions = []
     for scanner, result in zip(scanners, results):
-        if isinstance(result, Exception):
+        if isinstance(result, JsonRpcException):
+            submissions.append(dict(name = scanner.name, success = False, detail = result.as_error()))
+        elif isinstance(result, Exception):
             submissions.append(dict(name = scanner.name, success = False, detail = repr(result)))
         else:
             submissions.append(dict(name = scanner.name, success = True))
@@ -91,36 +78,8 @@ async def report(scanners, image):
     issues = []
     vulnerabilities = dict()
     for scanner, result in zip(scanners, results):
-        if isinstance(result, NoVulnerabilityDataAvailable):
-            issues.append(
-                Issue(
-                    kind = "Missing Data",
-                    title = result.message,
-                    severity = Severity.HIGH,
-                    reported_by = [scanner.name],
-                    detail = result.data
-                )
-            )
-        elif isinstance(result, JsonRpcException):
-            issues.append(
-                Issue(
-                    kind = "Scanner Error",
-                    title = result.message,
-                    severity = Severity.HIGH,
-                    reported_by = [scanner.name],
-                    detail = result.data
-                )
-            )
-        elif isinstance(result, Exception):
-            issues.append(
-                Issue(
-                    kind = "Scanner Error",
-                    title = "Error retrieving vulnerability data",
-                    severity = Severity.HIGH,
-                    reported_by = [scanner.name],
-                    detail = repr(result)
-                )
-            )
+        if isinstance(result, Exception):
+            issues.append(exception_as_issue(scanner, result))
         else:
             for vuln in result:
                 key = frozenset(vuln.dict(include = AGGREGATE_KEYS).items())

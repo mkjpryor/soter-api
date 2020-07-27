@@ -2,7 +2,7 @@
 Module containing exceptions that can be raised by backends.
 """
 
-from ..exceptions import ScannerError
+from ..exceptions import ScannerError, MissingData
 
 
 class ImageNotFound(ScannerError):
@@ -15,15 +15,15 @@ class ImageNotFound(ScannerError):
 
 class ImageSubmissionFailed(ScannerError):
     """
-    Raised when image submission failed for all scanners.
+    Raised when image submission failed for at least one scanners.
     """
     code = 201
     message = "Image submission failed"
 
 
-class NoVulnerabilityDataAvailable(ScannerError):
+class NoVulnerabilityDataAvailable(MissingData):
     """
     Raised when vulnerability data is not available for an image.
     """
-    code = 201
-    message = "Vulnerability data not available"
+    code = 202
+    message = "No vulnerability data available"

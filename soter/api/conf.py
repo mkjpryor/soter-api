@@ -39,9 +39,6 @@ class ApiSettings(BaseModel):
     """
     Model defining settings for the Soter API application.
     """
-    #: The default registry for images without a registry
-    #: Defaults to Docker hub
-    default_registry: constr(min_length = 1) = "registry-1.docker.io"
     #: The list of configured scanners
     scanners: conlist(ScannerSpec, min_items = 1)
 
@@ -59,7 +56,7 @@ def from_file(config_file):
     """
     config = dict()
     include(config_file, config)
-    return ApiSettings(**config)
+    return ApiSettings.parse_obj(config)
 
 
 def from_env_file(var_name, default_file):

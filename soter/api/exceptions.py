@@ -17,6 +17,12 @@ class ScannerError(SoterError):
     """
 
 
+class MissingData(ScannerError):
+    """
+    Base class for all missing data errors in Soter.
+    """
+
+
 class ScannerUnavailable(ScannerError):
     """
     Raised when a scanner is not available.

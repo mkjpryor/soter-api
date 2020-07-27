@@ -3,27 +3,15 @@ Module containing JSON-RPC methods providing information about the system.
 """
 
 import asyncio
+import functools
+
+from jsonrpc.exceptions import JsonRpcException
 
 from .conf import settings
+from .models import ScannerStatus
 
 
 __all__ = ['scanners']
-
-
-async def get_scanner_status(scanner):
-    """
-    Get the status of the scanner, dealing with exceptions.
-    """
-    try:
-        return (await scanner.status())
-    except Exception as exc:
-        return ScannerStatus(
-            name = scanner.name,
-            kind = scanner.kind,
-            version = 'unknown',
-            available = False,
-            message = str(exc)
-        )
 
 
 async def scanners():
@@ -31,5 +19,21 @@ async def scanners():
     Get information about the status of the scanners.
     """
     # Fetch the status of each scanner concurrently
-    tasks = [get_scanner_status(s) for s in settings.scanners]
-    return (await asyncio.gather(*tasks))
+    tasks = [scanner.status() for scanner in settings.scanners]
+    results = await asyncio.gather(*tasks, return_exceptions = True)
+    statuses = []
+    for scanner, result in zip(settings.scanners, results):
+        ErrorStatus = functools.partial(
+            ScannerStatus,
+            name = scanner.name,
+            kind = scanner.kind,
+            version = 'unknown',
+            available = False
+        )
+        if isinstance(result, JsonRpcException):
+            statuses.append(ErrorStatus(message = result.message))
+        elif isinstance(result, Exception):
+            statuses.append(ErrorStatus(message = repr(result)))
+        else:
+            statuses.append(result)
+    return statuses

@@ -1,7 +1,5 @@
 """
-Module containing models for data-transfer objects (DTOs).
-
-Used to define the interfaces between scanner implementations and the core API.
+Module containing models for data-transfer objects (DTOs) for image scanners.
 """
 
 from enum import Enum

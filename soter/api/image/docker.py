@@ -10,8 +10,6 @@ from dateutil.parser import parse as dateutil_parse
 import httpx
 import httpcore
 
-from ..conf import settings
-
 from .exceptions import ImageNotFound
 
 
@@ -44,7 +42,11 @@ class Image(namedtuple('Image', [
         return f'{self.registry}/{self.repository}@{self.digest}'
 
 
+#: Regex used to parse the www-authenticate header for auth information
 WWW_AUTHENTICATE_REGEX = r'Bearer realm="(?P<realm>.*)",service="(?P<service>.*)",scope="(?P<scope>.*)"'
+
+#: The default registry, used when no other registry is specified
+DEFAULT_REGISTRY = "registry-1.docker.io"
 
 
 async def fetch_image(image):
@@ -60,10 +62,10 @@ async def fetch_image(image):
     image, registry, *notused = image.split('/', 1)[::-1] + [None]
     if not registry:
         image = f'library/{image}'
-        registry = settings.default_registry
+        registry = DEFAULT_REGISTRY
     elif all(c not in registry for c in {'.', ':'}) and registry != "localhost":
         image = f'{registry}/{image}'
-        registry = settings.default_registry
+        registry = DEFAULT_REGISTRY
     # Next, split the image into repository and reference
     # If the reference is a tag, then save it for later
     tag = None
