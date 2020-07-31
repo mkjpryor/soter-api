@@ -5,9 +5,10 @@ Module containing models for data-transfer objects (DTOs) for image scanners.
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, HttpUrl, validator
+from pydantic import BaseModel, HttpUrl, validator, constr, conset
+from pydantic.dataclasses import dataclass
 
-from ..models import Severity, Report
+from ..models import Issue, Report
 
 
 class PackageType(Enum):
@@ -20,26 +21,21 @@ class PackageType(Enum):
     NON_OS = "non-os"
 
 
-class ImageVulnerability(BaseModel):
+@dataclass
+class PackageDetail:
     """
-    Model for a vulnerability in an image.
+    Model for the details of an affected package.
     """
-    #: The id of the vulnerability, e.g. CVE-xxx or RHSA-xxx
-    id: str
-    #: The URL to visit for more information
-    url: HttpUrl
     #: The package name that the vulnerability applies to
-    package_name: str
+    package_name: constr(min_length = 1)
     #: The package version that the vulnerability applies to
-    package_version: str
-    #: The severity of the vulnerability
-    severity: Severity
+    package_version: constr(min_length = 1)
     #: The type of package
     package_type: PackageType
     #: The location of the package
-    package_location: Optional[str] = None
+    package_location: Optional[constr(min_length = 1)] = None
     #: The version at which the vulnerability is fixed, if it exists
-    fix_version: Optional[str] = None
+    fix_version: Optional[constr(min_length = 1)] = None
 
     @validator('package_location')
     def check_package_location(cls, v, values):
@@ -53,10 +49,45 @@ class ImageVulnerability(BaseModel):
                     raise ValueError('required for non-OS packages')
         return v
 
+    def __eq__(self, other):
+        # Two package details are equal if they refer to the same package
+        # We don't worry about the fix version
+        if not isinstance(other, PackageDetail):
+            raise NotImplementedError
+        return (
+            self.package_name == other.package_name and
+            self.package_version == other.package_version and
+            self.package_type == other.package_type and
+            self.package_location == other.package_location
+        )
+
+    def __hash__(self):
+        # We need to make this so two package details that are equal have the same hash
+        return hash((
+            type(self),
+            self.package_name,
+            self.package_version,
+            self.package_type,
+            self.package_location
+        ))
+
+
+class ImageVulnerability(Issue):
+    """
+    Model for a vulnerability in an image.
+    """
+    affected_packages: conset(PackageDetail, min_items = 1)
+
+    def merge(self, other):
+        # Merge the affected packages
+        merged = super().merge(other)
+        merged.affected_packages = self.affected_packages | other.affected_packages
+        return merged
+
 
 class ImageReport(Report):
     """
     Class for a security report for an image.
     """
     #: The digest of the image
-    image_digest: str
+    image_digest: constr(min_length = 1)

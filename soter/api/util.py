@@ -9,7 +9,7 @@ import wrapt
 from jsonrpc.exceptions import JsonRpcException
 
 from .exceptions import MissingData
-from .models import Issue, Severity
+from .models import Error
 
 
 def injects(n):
@@ -24,7 +24,7 @@ def injects(n):
     return wrapt.decorator(adapter = wrapt.adapter_factory(modify_argspec))
 
 
-def exception_as_issue(scanner, exc):
+def exception_as_issue(exc, scanner_name):
     """
     Convert the given exception to an issue for inclusion in reports.
     """
@@ -36,12 +36,13 @@ def exception_as_issue(scanner, exc):
         title = exc.message
         detail = exc.data
     else:
-        title = "Error retrieving issue data"
+        # Convert the exception name to words for the title
+        words = re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', exc.__class__.__name__)
+        title = ' '.join(words).lower().capitalize()
         detail = repr(exc)
-    return Issue(
+    return Error(
         kind = kind,
         title = title,
-        severity = Severity.HIGH,
-        reported_by = [scanner.name],
-        detail = detail
+        detail = detail,
+        reported_by = [scanner_name]
     )

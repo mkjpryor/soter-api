@@ -66,6 +66,9 @@ async def fetch_image(image):
     elif all(c not in registry for c in {'.', ':'}) and registry != "localhost":
         image = f'{registry}/{image}'
         registry = DEFAULT_REGISTRY
+    # docker.io isn't a real registry, so use the default registry instead
+    if registry == "docker.io":
+        registry = DEFAULT_REGISTRY
     # Next, split the image into repository and reference
     # If the reference is a tag, then save it for later
     tag = None
@@ -115,6 +118,25 @@ async def fetch_image(image):
         if response.status_code in {401, 404}:
             raise ImageNotFound(original_image)
         response.raise_for_status()
+        # If a manifest list was returned, fetch the manifest for the linux/amd64 variant
+        content_type = response.headers.get('content-type')
+        if content_type == 'application/vnd.docker.distribution.manifest.list.v2+json':
+            try:
+                digest = next(
+                    m['digest']
+                    for m in response.json()['manifests']
+                    if m['platform']['architecture'] == 'amd64' and m['platform']['os'] == 'linux'
+                )
+                response = await client.get(
+                    f'https://{registry}/v2/{repository}/manifests/{digest}',
+                    headers = {
+                        # Make sure to ask for the V2 schema
+                        'Accept': 'application/vnd.docker.distribution.manifest.v2+json'
+                    }
+                )
+                response.raise_for_status()
+            except StopIteration:
+                raise ImageNotFound(original_image)
         # The digest is in a response header
         manifest = response.json()
         digest = response.headers['docker-content-digest']

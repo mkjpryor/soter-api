@@ -10,7 +10,7 @@ from ...models import ScannerStatus, Severity
 from ...exceptions import ScannerUnavailable
 
 from .base import ImageScanner
-from ..models import PackageType, ImageVulnerability
+from ..models import PackageType, PackageDetail, ImageVulnerability
 from ..exceptions import NoVulnerabilityDataAvailable
 
 
@@ -108,22 +108,27 @@ class AnchoreEngine(ImageScanner):
             vuln_response.raise_for_status()
         return (
             ImageVulnerability(
-                id = vuln['vuln'],
-                url = vuln['url'],
-                package_name = vuln['package_name'],
-                package_version = vuln['package_version'],
+                title = vuln['vuln'],
                 severity = Severity(vuln['severity']),
-                package_type = (
-                    PackageType.OS
-                    if vuln['package_path'] == "pkgdb"
-                    else PackageType.NON_OS
-                ),
-                package_location = (
-                    vuln['package_path']
-                    if vuln['package_path'] != "pkgdb"
-                    else None
-                ),
-                fix_version = vuln['fix'] if vuln['fix'] != "None" else None
+                info_url = vuln['url'],
+                reported_by = [self.name],
+                affected_packages = [
+                    PackageDetail(
+                        package_name = vuln['package_name'],
+                        package_version = vuln['package_version'],
+                        package_type = (
+                            PackageType.OS
+                            if vuln['package_path'] == "pkgdb"
+                            else PackageType.NON_OS
+                        ),
+                        package_location = (
+                            vuln['package_path']
+                            if vuln['package_path'] != "pkgdb"
+                            else None
+                        ),
+                        fix_version = vuln['fix'] if vuln['fix'] != "None" else None
+                    )
+                ]
             )
             for vuln in vuln_response.json()['vulnerabilities']
         )

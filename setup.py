@@ -34,15 +34,16 @@ if __name__ == "__main__":
             'pydantic',
             'python-dateutil',
             'jsonrpc-asyncio',
-            'kubernetes_asyncio',
+            'sortedcontainers',
         ],
         entry_points = {
-            # Entrypoint defining modules containing RPC methods to use
+            # Entrypoint defining RPC modules available in the core package
             'soter.api.rpc': [
                 'info = soter.api.info',
                 'image = soter.api.image.rpc',
+                'pod = soter.api.pod.rpc',
             ],
-            # Entrypoint defining the scanner types available in the core package
+            # Entrypoint defining scanners available in the core package
             'soter.api.scanner': [
                 'anchore-engine = soter.api.image.scanner.anchore:AnchoreEngine',
             ],
