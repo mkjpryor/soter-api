@@ -33,7 +33,7 @@ if __name__ == "__main__":
             'httpx',
             'pydantic',
             'python-dateutil',
-            'jsonrpc-asyncio',
+            'jsonrpc-asyncio-server',
             'sortedcontainers',
         ],
         entry_points = {

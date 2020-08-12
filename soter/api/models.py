@@ -86,7 +86,7 @@ class Issue(BaseModel):
         """
         Merge two issues into one.
         """
-        # If the aggregate keys match, the issues can be aggregated
+        # If the aggregation keys match, the issues can be aggregated
         if self.aggregation_key != other.aggregation_key:
             raise ValueError('issues are not compatible for aggregation')
         return self.copy(

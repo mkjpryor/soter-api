@@ -2,7 +2,7 @@
 Module containing exceptions that can be raised by backends.
 """
 
-from jsonrpc.exceptions import JsonRpcException
+from jsonrpc.model import JsonRpcException
 
 
 class SoterError(JsonRpcException):
@@ -17,17 +17,11 @@ class ScannerError(SoterError):
     """
 
 
-class MissingData(ScannerError):
-    """
-    Base class for all missing data errors in Soter.
-    """
-
-
 class ScannerUnavailable(ScannerError):
     """
     Raised when a scanner is not available.
     """
-    code = 100
+    code = 1000
     message = "Scanner unavailable"
 
 
@@ -35,5 +29,5 @@ class NoSuitableScanners(ScannerError):
     """
     Raised when there are no suitable scanners for an operation.
     """
-    code = 101
+    code = 1001
     message = "No suitable scanners"

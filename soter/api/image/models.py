@@ -42,11 +42,9 @@ class PackageDetail:
         package_type = values.get('package_type')
         if package_type:
             if package_type == PackageType.OS:
-                if v is not None:
-                    raise ValueError('should not be given for OS packages')
+                assert v is None, 'should not be given for OS packages'
             else:
-                if not v:
-                    raise ValueError('required for non-OS packages')
+                assert v is not None, 'required for non-OS packages'
         return v
 
     def __eq__(self, other):
@@ -62,7 +60,7 @@ class PackageDetail:
         )
 
     def __hash__(self):
-        # We need to make this so two package details that are equal have the same hash
+        # Two package details that are equal should have the same hash
         return hash((
             type(self),
             self.package_name,
@@ -75,7 +73,10 @@ class PackageDetail:
 class ImageVulnerability(Issue):
     """
     Model for a vulnerability in an image.
+
+    The title for an image vulnerability should be the CVE id or equivalent.
     """
+    #: The packages affected by the vulnerability
     affected_packages: conset(PackageDetail, min_items = 1)
 
     def merge(self, other):

@@ -5,7 +5,7 @@ Module containing JSON-RPC methods providing information about the system.
 import asyncio
 import functools
 
-from jsonrpc.exceptions import JsonRpcException
+from jsonrpc.model import JsonRpcException
 
 from .conf import settings
 from .models import ScannerStatus

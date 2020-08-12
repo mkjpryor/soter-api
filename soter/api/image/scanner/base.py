@@ -18,23 +18,12 @@ class ImageScanner(Scanner):
     Base class for an image scanner.
     """
     @abc.abstractmethod
-    async def submit(self, image: Image) -> bool:
+    async def scan(self, image: Image) -> List[ImageVulnerability]:
         """
-        Submit the given image for scanning.
+        Scan the given image and return a list of vulnerabilities.
 
-        Should return ``True`` if the image is successfully submitted and raise an
-        exception if not.
-        """
+        If the scanner requires a separate submission step, this method is responsible for
+        submitting the image and waiting for vulnerability data to become available.
 
-    @abc.abstractmethod
-    async def report(self, image: Image) -> List[ImageVulnerability]:
-        """
-        Returns a list of vulnerabilities found for the given image.
-
-        If there is no vulnerability data available for the image, as distinct from
-        there being no vulnerabilities in the image, then
-        py:class:`..exceptions.NoVulnerabilityDataAvailable` should be raised.
-
-        If any other error occurs while retrieving vulnerability data, a suitable
-        exception should be raised.
+        If an error occurs during the scan, a suitable exception should be raised.
         """

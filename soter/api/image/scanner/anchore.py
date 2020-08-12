@@ -11,7 +11,6 @@ from ...exceptions import ScannerUnavailable
 
 from .base import ImageScanner
 from ..models import PackageType, PackageDetail, ImageVulnerability
-from ..exceptions import NoVulnerabilityDataAvailable
 
 
 class AnchoreEngine(ImageScanner):
@@ -20,17 +19,18 @@ class AnchoreEngine(ImageScanner):
     """
     kind = "Anchore Engine"
 
-    def __init__(self, name, url, username, password):
+    def __init__(self, name, url, username, password, poll_interval = 2.0):
         super().__init__(name)
         self.url = url
         self.auth = httpx.BasicAuth(username, password)
+        self.poll_interval = poll_interval
 
     async def status(self):
-        async with httpx.AsyncClient() as client:
-            # Fetch system and feeds information in parallel
+        async with httpx.AsyncClient(auth = self.auth) as client:
+            # Fetch system and feeds information concurrently
             system, feeds = await asyncio.gather(
-                client.get(f'{self.url}/system', auth = self.auth),
-                client.get(f'{self.url}/system/feeds', auth = self.auth)
+                client.get(f'{self.url}/system'),
+                client.get(f'{self.url}/system/feeds')
             )
         system.raise_for_status()
         feeds.raise_for_status()
@@ -64,8 +64,9 @@ class AnchoreEngine(ImageScanner):
             properties = properties
         )
 
-    async def submit(self, image):
-        async with httpx.AsyncClient() as client:
+    async def scan(self, image):
+        async with httpx.AsyncClient(auth = self.auth) as client:
+            # First, submit the image
             response = await client.post(
                 f'{self.url}/images',
                 json = dict(
@@ -77,35 +78,20 @@ class AnchoreEngine(ImageScanner):
                             creation_timestamp_override = image.created.strftime('%Y-%m-%dT%H:%M:%SZ')
                         )
                     )
-                ),
-                auth = self.auth
+                )
             )
-        response.raise_for_status()
-        return True
-
-    async def report(self, image):
-        """
-        Return a list of vulnerabilities for the given image.
-        """
-        async with httpx.AsyncClient(auth = self.auth) as client:
-            image_url = f'{self.url}/images/{image.digest}'
-            # Fetch the vulnerabilities
-            vuln_response = await client.get(f'{image_url}/vuln/all')
-            # A 404 indicates no data available
-            # Check if there is a scan in progress or if the image has not been submitted
-            if vuln_response.status_code == 404:
-                detail_response = await client.get(image_url)
-                if detail_response.status_code == 200:
-                    # If the response was successful, the image must be being analysed
-                    raise NoVulnerabilityDataAvailable('analysis in progress')
-                elif detail_response.status_code == 404:
-                    # A 404 means the image was never submitted
-                    raise NoVulnerabilityDataAvailable('image has not been submitted')
-                # If there are any other errors with the response, raise them
-                else:
-                    detail_response.raise_for_status()
-            # Raise any other errors with the response
-            vuln_response.raise_for_status()
+            response.raise_for_status()
+            # Keep checking until the analysis status becomes analyzed
+            while True:
+                analysis_status = response.json()[0]['analysis_status']
+                if analysis_status == "analyzed":
+                    break
+                await asyncio.sleep(self.poll_interval)
+                response = await client.get(f'{self.url}/images/{image.digest}')
+                response.raise_for_status()
+            # Once analysis is complete, fetch the vulnerabilities
+            response = await client.get(f'{self.url}/images/{image.digest}/vuln/all')
+            response.raise_for_status()
         return (
             ImageVulnerability(
                 title = vuln['vuln'],
@@ -130,5 +116,5 @@ class AnchoreEngine(ImageScanner):
                     )
                 ]
             )
-            for vuln in vuln_response.json()['vulnerabilities']
+            for vuln in response.json()['vulnerabilities']
         )
