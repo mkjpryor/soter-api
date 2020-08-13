@@ -4,7 +4,6 @@ Module containing models for data-transfer objects (DTOs).
 Used to define the interfaces between scanner implementations and the core API.
 """
 
-import re
 from collections.abc import MutableSet
 from enum import Enum
 from functools import total_ordering
@@ -68,11 +67,11 @@ class Issue(BaseModel):
 
     @validator('kind', pre = True, always = True)
     def default_kind(cls, kind):
-        # The default kind is the name of the issue class converted to words
+        # The default kind is the name of the issue class
         if kind:
             return kind
         else:
-            return ' '.join(re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', cls.__name__))
+            return cls.__name__
 
     @property
     def aggregation_key(self):

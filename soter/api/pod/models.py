@@ -2,7 +2,7 @@
 Module containing models for data-transfer objects (DTOs) for pod scanners.
 """
 
-from typing import Set
+from typing import Set, Union
 
 from pydantic import constr, conset
 from pydantic.dataclasses import dataclass
@@ -28,7 +28,12 @@ class PodIssue(Issue):
     Base class for issues that affect one or more pods.
     """
     #: The affected pods
-    affected_pods: conset(Pod, min_items = 1)
+    #: When the issue is in a namespaced pod report, this is a set of pod names
+    #: When the issue is in a non-namespaced pod report, it is a set of pod objects
+    affected_pods: Union[
+        conset(Pod, min_items = 1),
+        conset(constr(min_length = 1), min_items = 1)
+    ]
 
     def merge(self, other):
         # Merge the affected pods with the incoming issue
@@ -112,3 +117,13 @@ class PodReport(Report):
     """
     #: The set of pods that were processed
     pods: Set[Pod]
+
+
+class NamespacedPodReport(Report):
+    """
+    Model for a pod security report for a single namespace.
+    """
+    #: The namespace for the report
+    namespace: constr(min_length = 1)
+    #: The set of pods that were processed
+    pods: Set[constr(min_length = 1)]

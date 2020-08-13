@@ -17,7 +17,13 @@ from ..k8s_auth import authenticator_from_config
 
 from ..image.exceptions import ImageNotFound as ImageNotFoundException
 
-from .models import PodReport, PodImageIssue, Pod, ImageNotFound as ImageNotFoundIssue
+from .models import (
+    PodReport,
+    NamespacedPodReport,
+    PodImageIssue,
+    Pod,
+    ImageNotFound as ImageNotFoundIssue
+)
 
 
 # This defines the methods available to the JSON-RPC dispatcher
@@ -39,15 +45,20 @@ def image_report_to_issues(report, image, pods):
         return (PodImageIssue.from_image_issue(issue, [image], pods) for issue in report.issues)
 
 
-async def pod_images_scan(pods, scanners):
+async def pod_images_scan(pods, scanners, include_namespaces):
     """
     Returns an iterable of pod issues for the images in use by the given pods
     using the given scanners.
     """
-    # First, get the set of unique images used by the pods and the pods that use them
+    # First, get the set of unique images and the pods that use them
+    # Whether we index a pod object or just a pod name depends on whether we are generating
+    # a namespaced report or a cross-namespace report
     pod_images = {}
     for pod in pods:
-        pod_info = Pod(namespace = pod.metadata.namespace, name = pod.metadata.name)
+        if include_namespaces:
+            pod_info = Pod(namespace = pod.metadata.namespace, name = pod.metadata.name)
+        else:
+            pod_info = pod.metadata.name
         for status in pod.status.container_statuses:
             # Kubernetes starts images with docker-pullable://, which we remove
             image = status.image_id.replace('docker-pullable://', '')
@@ -86,14 +97,14 @@ async def scan(*, auth,
         raise InvalidParams('pod name(s) cannot be provided when a selector is specified')
     # Fetch the pods using an API client configured with the given auth
     authenticator = authenticator_from_config(auth)
+    # If no namespace is specified, use the default namespace for the context
+    namespace = namespace or authenticator.default_namespace(context)
     async with authenticator.get_api_client(context) as api_client:
         # List the pods to process using the api client
         v1 = client.CoreV1Api(api_client)
         if all_namespaces:
             list_pods = v1.list_pod_for_all_namespaces
         else:
-            # If no namespace is specified, use the default namespace for the context
-            namespace = namespace or authenticator.default_namespace(context)
             list_pods = functools.partial(v1.list_namespaced_pod, namespace)
         # Fetch the list of pods using the given selector
         pod_list = (await list_pods(label_selector = selector)).items
@@ -107,12 +118,19 @@ async def scan(*, auth,
         # The pod must have at least one running container
         if any(status.state.running for status in pod.status.container_statuses)
     ]
-    results = await asyncio.gather(pod_images_scan(pods, scanners))
-    return PodReport(
-        # Add information about the pods which were processed to the report
-        pods = (
-            Pod(namespace = pod.metadata.namespace, name = pod.metadata.name)
-            for pod in pods
-        ),
-        issues = itertools.chain.from_iterable(results)
-    )
+    results = await asyncio.gather(pod_images_scan(pods, scanners, all_namespaces))
+    if all_namespaces:
+        return PodReport(
+            # Add information about the pods which were processed to the report
+            pods = (
+                Pod(namespace = pod.metadata.namespace, name = pod.metadata.name)
+                for pod in pods
+            ),
+            issues = itertools.chain.from_iterable(results)
+        )
+    else:
+        return NamespacedPodReport(
+            namespace = namespace,
+            pods = (pod.metadata.name for pod in pods),
+            issues = itertools.chain.from_iterable(results)
+        )
