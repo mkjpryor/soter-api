@@ -9,6 +9,7 @@ import wrapt
 
 from jsonrpc.model import JsonRpcException
 
+from .exceptions import NoSuitableScanners
 from .models import Error
 
 
@@ -48,10 +49,14 @@ def default_scanners(wrapped, instance, args, kwargs):
     The scanners come from settings and are optionally filtered in the request.
     """
     from .conf import settings
-    requested = set(kwargs.pop('scanners', []))
-    if requested:
+    if 'scanners' in kwargs:
+        # If scanners is given in kwargs, use it even if it is empty
+        requested = kwargs.pop('scanners')
         scanners = [s for s in settings.scanners if s.name in requested]
+        if not scanners:
+            raise NoSuitableScanners('no valid scanners specified')
     else:
+        # If no scanners were given, just use all the scanners from settings
         scanners = settings.scanners
     return wrapped(*args, scanners = scanners, **kwargs)
 

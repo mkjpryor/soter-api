@@ -9,6 +9,19 @@ class SoterError(JsonRpcException):
     """
     Base class for all Soter errors.
     """
+    __seen__ = dict()
+
+    def __init_subclass__(cls):
+        # Make sure that the code has not been used for another error
+        if cls.code is None:
+            return
+        if cls.code in SoterError.__seen__:
+            message = 'code {} already in use by {}'.format(
+                cls.code,
+                SoterError.__seen__[cls.code].__name__
+            )
+            raise TypeError(message)
+        SoterError.__seen__[cls.code] = cls
 
 
 class ScannerError(SoterError):
@@ -21,13 +34,13 @@ class ScannerUnavailable(ScannerError):
     """
     Raised when a scanner is not available.
     """
-    code = 1000
     message = "Scanner unavailable"
+    code = 200
 
 
 class NoSuitableScanners(ScannerError):
     """
     Raised when there are no suitable scanners for an operation.
     """
-    code = 1001
     message = "No suitable scanners"
+    code = 201

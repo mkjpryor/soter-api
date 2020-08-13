@@ -35,6 +35,8 @@ if __name__ == "__main__":
             'python-dateutil',
             'jsonrpc-asyncio-server',
             'sortedcontainers',
+            'kubernetes_asyncio',
+            'pyyaml',
         ],
         entry_points = {
             # Entrypoint defining RPC modules available in the core package
@@ -47,5 +49,9 @@ if __name__ == "__main__":
             'soter.api.scanner': [
                 'anchore-engine = soter.api.image.scanner.anchore:AnchoreEngine',
             ],
+            # Entrypoint defining Kubernetes authenticators available in the core package
+            'soter.api.k8s_auth': [
+                'kubeconfig = soter.api.k8s_auth.kubeconfig:Authenticator',
+            ]
         }
     )

@@ -10,7 +10,6 @@ from typing import Dict, List, Any
 from ...scanner import Scanner
 
 from ..models import PodIssue
-from ..exceptions import PodSubmissionFailed
 
 
 class PodScanner(Scanner):

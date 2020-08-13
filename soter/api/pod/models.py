@@ -14,6 +14,9 @@ from ..image.models import ImageVulnerability
 
 @dataclass(eq = True, frozen = True)
 class Pod:
+    """
+    Model representing a pod.
+    """
     #: The namespace of the pod
     namespace: constr(min_length = 1)
     #: The name of the pod
@@ -28,7 +31,7 @@ class PodIssue(Issue):
     affected_pods: conset(Pod, min_items = 1)
 
     def merge(self, other):
-        # Merge the affected packages
+        # Merge the affected pods with the incoming issue
         merged = super().merge(other)
         merged.affected_pods = self.affected_pods | other.affected_pods
         return merged
@@ -42,7 +45,7 @@ class PodError(PodIssue, Error):
 
 class PodImageIssue(PodIssue):
     """
-    Base class for issues that affect an image used by one or more pods.
+    Base class for issues that affect one or more images in use by one or more pods.
     """
     #: The affected images
     affected_images: conset(constr(min_length = 1), min_items = 1)
@@ -83,13 +86,13 @@ class PodImageIssue(PodIssue):
 
 class PodImageError(PodImageIssue, Error):
     """
-    Model for a scanner error affecting one or more images used by one or more pods.
+    Model for a scanner error affecting one or more images in use by one or more pods.
     """
 
 
 class PodImageVulnerability(PodImageIssue, ImageVulnerability):
     """
-    Model for an image vulnerability affecting one or more pods.
+    Model for an image vulnerability affecting one or more images in use by one or more pods.
     """
 
 

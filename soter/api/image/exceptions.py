@@ -9,5 +9,5 @@ class ImageNotFound(ScannerError):
     """
     Raised when an image cannot be found.
     """
-    code = 2000
+    code = 210
     message = "Image not found"
