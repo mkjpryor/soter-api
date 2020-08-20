@@ -20,45 +20,80 @@ from ..image.exceptions import ImageNotFound as ImageNotFoundException
 from .models import (
     PodReport,
     NamespacedPodReport,
-    PodImageIssue,
     Pod,
-    ImageNotFound as ImageNotFoundIssue
+    ImageNotFound as ImageNotFoundIssue,
+    PodImageVulnerability,
+    PodImageError
 )
 
 
 # This defines the methods available to the JSON-RPC dispatcher
-__all__ = ['scan']
+__all__ = ['clusters', 'namespaces', 'scan']
+
+
+async def clusters(*, auth):
+    """
+    Return the clusters available for the given auth.
+    """
+    return await authenticator_from_config(auth).available_clusters()
+
+
+async def namespaces(*, auth, cluster = None):
+    """
+    Return the namespaces available for the given auth and cluster.
+    """
+    authenticator = authenticator_from_config(auth)
+    async with authenticator.get_api_client(cluster) as api_client:
+        namespaces = await client.CoreV1Api(api_client).list_namespace()
+    return [ns.metadata.name for ns in namespaces.items]
 
 
 def image_report_to_issues(report, image, pods):
+    """
+    Returns an iterable of pod issues for the given image report, image and pods
+    """
     # If there are no image scanners, just ignore that error
     if isinstance(report, NoSuitableScanners):
-        return ()
+        return
     elif isinstance(report, ImageNotFoundException):
         # Return an error that is "reported by" the system
-        return (ImageNotFoundIssue(affected_images = [image], affected_pods = pods), )
+        yield ImageNotFoundIssue(affected_images = [image], affected_pods = pods)
     elif isinstance(report, Exception):
         # All other exceptions are unexpected and should be re-raised
         raise report
     else:
         # Otherwise, process it as an image report by converting the issues into pod image issues
-        return (PodImageIssue.from_image_issue(issue, [image], pods) for issue in report.issues)
+        for issue in report.issues:
+            if issue.kind == "ImageVulnerability":
+                yield PodImageVulnerability(
+                    title = issue.title,
+                    severity = issue.severity,
+                    info_url = issue.info_url,
+                    reported_by = issue.reported_by,
+                    affected_pods = pods,
+                    affected_packages = { image: issue.affected_packages }
+                )
+            else:
+                yield PodImageError(
+                    title = issue.title,
+                    severity = issue.severity,
+                    info_url = issue.info_url,
+                    reported_by = issue.reported_by,
+                    detail = issue.detail,
+                    affected_pods = pods,
+                    affected_images = [image]
+                )
 
 
-async def pod_images_scan(pods, scanners, include_namespaces):
+async def pod_images_scan(pods, scanners):
     """
     Returns an iterable of pod issues for the images in use by the given pods
     using the given scanners.
     """
     # First, get the set of unique images and the pods that use them
-    # Whether we index a pod object or just a pod name depends on whether we are generating
-    # a namespaced report or a cross-namespace report
     pod_images = {}
     for pod in pods:
-        if include_namespaces:
-            pod_info = Pod(namespace = pod.metadata.namespace, name = pod.metadata.name)
-        else:
-            pod_info = pod.metadata.name
+        pod_info = Pod(namespace = pod.metadata.namespace, name = pod.metadata.name)
         for status in pod.status.container_statuses:
             # Kubernetes starts images with docker-pullable://, which we remove
             image = status.image_id.replace('docker-pullable://', '')
@@ -81,13 +116,13 @@ async def pod_images_scan(pods, scanners, include_namespaces):
 @default_scanners
 async def scan(*, auth,
                   scanners,
-                  context = None,
+                  cluster = None,
                   all_namespaces = False,
                   namespace = None,
                   selector = None,
                   pods = None):
     """
-    Get a security report for the given context and namespace(s).
+    Get a security report for the given cluster and namespace(s).
     """
     # All namespaces and named pods cannot be specified together as the pods
     # are not uniquely identified
@@ -97,9 +132,9 @@ async def scan(*, auth,
         raise InvalidParams('pod name(s) cannot be provided when a selector is specified')
     # Fetch the pods using an API client configured with the given auth
     authenticator = authenticator_from_config(auth)
-    # If no namespace is specified, use the default namespace for the context
-    namespace = namespace or authenticator.default_namespace(context)
-    async with authenticator.get_api_client(context) as api_client:
+    # If no namespace is specified, use the default namespace for the cluster
+    namespace = namespace or (await authenticator.default_namespace(cluster))
+    async with authenticator.get_api_client(cluster) as api_client:
         # List the pods to process using the api client
         v1 = client.CoreV1Api(api_client)
         if all_namespaces:
@@ -118,7 +153,7 @@ async def scan(*, auth,
         # The pod must have at least one running container
         if any(status.state.running for status in pod.status.container_statuses)
     ]
-    results = await asyncio.gather(pod_images_scan(pods, scanners, all_namespaces))
+    results = await asyncio.gather(pod_images_scan(pods, scanners))
     if all_namespaces:
         return PodReport(
             # Add information about the pods which were processed to the report

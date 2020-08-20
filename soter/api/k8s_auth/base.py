@@ -10,26 +10,25 @@ class Authenticator(abc.ABC):
     Base class for all authenticators.
     """
     @abc.abstractmethod
-    def get_available_contexts(self):
+    async def available_clusters(self):
         """
-        Return a list or tuple of the available contexts.
-        """
-
-    @property
-    @abc.abstractmethod
-    def default_context(self):
-        """
-        The default context if no other context is specified.
+        Return a list or tuple of the available clusters.
         """
 
     @abc.abstractmethod
-    def default_namespace(self, context):
+    async def default_cluster(self):
         """
-        The default namespace for the context if no other namespace is specified.
+        The default cluster if no other cluster is specified.
         """
 
     @abc.abstractmethod
-    async def get_api_client(self, context):
+    async def default_namespace(self, cluster):
         """
-        Async context manager that yields a configured api client for the given context.
+        The default namespace for the cluster if no other namespace is specified.
+        """
+
+    @abc.abstractmethod
+    async def get_api_client(self, cluster):
+        """
+        Async context manager that yields a configured api client for the given cluster.
         """

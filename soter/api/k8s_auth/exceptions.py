@@ -11,3 +11,11 @@ class InvalidAuthenticatorKind(SoterError):
     """
     code = 100
     message = "Invalid authenticator kind"
+
+
+class InvalidCluster(SoterError):
+    """
+    Raised when an invalid cluster is specified.
+    """
+    code = 101
+    message = "Invalid cluster"
