@@ -10,6 +10,8 @@ from pydantic.dataclasses import dataclass
 
 from ..models import Issue, Error, Severity, Report
 
+from ..image.models import ImageReport
+
 
 @dataclass(eq = True, frozen = True)
 class Pod:
@@ -42,40 +44,44 @@ class PodError(PodIssue, Error):
     """
 
 
-class PodImageVulnerability(PodIssue):
+class VulnerableImage(PodIssue):
     """
-    Model for an image vulnerability affecting one or more images in use by one or more pods.
+    Model indicating that one or more pods are using a vulnerable image.
+
+    The image vulnerabilities are nested inside.
     """
-    #: The affected packages, indexed by image digest
-    #affected_packages: Dict[str, conset(PackageDetail, min_items = 1)]
+    #: The image scan that triggered this issue
+    image_report: ImageReport
+
+    @property
+    def aggregation_key(self):
+        # Add the image and digest from the report to the aggregation key
+        return super().aggregation_key + (
+            self.image_report.image,
+            self.image_report.digest
+        )
 
     def merge(self, other):
         merged = super().merge(other)
-        # Reset the affected packages on the merged object
-        merged.affected_packages = dict()
-        # Combine the affected packages from the two issues by merging the sets that
-        # correspond to the same image
-        all_packages = itertools.chain(self.affected_packages.items(), other.affected_packages.items())
-        for image, packages in all_packages:
-            merged.affected_packages.setdefault(image, set()).update(packages)
+        # This should probably never happen
+        # However, the reports are for the same image so just merge the issues
+        merged.image_report.issues.update(other.image_report.issues)
         return merged
 
-
-class PodImageError(PodError):
-    """
-    Model for a scanner error affecting one or more images in use by one or more pods.
-    """
-    #: The set of images affected by the error
-    affected_images: conset(constr(min_length = 1), min_items = 1)
-
-    def merge(self, other):
-        # Merge the affected images
-        merged = super().merge(other)
-        merged.affected_images = self.affected_images | other.affected_images
-        return merged
+    @classmethod
+    def from_image_report(cls, report, affected_pods):
+        return cls(
+            title = 'Uses image with known vulnerabilities',
+            # The severity is the severity of the most severe image vulnerability
+            severity = next(iter(report.issues)).severity,
+            # Include all the scanners that contributed to the report
+            reported_by = set(itertools.chain.from_iterable(i.reported_by for i in report.issues)),
+            affected_pods = affected_pods,
+            image_report = report
+        )
 
 
-class ImageNotFound(PodImageError):
+class ImageNotFound(PodIssue, Error):
     """
     Model for an issue representing an image that is not found.
     """

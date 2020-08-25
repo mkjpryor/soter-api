@@ -22,8 +22,7 @@ from .models import (
     NamespacedPodReport,
     Pod,
     ImageNotFound as ImageNotFoundIssue,
-    PodImageVulnerability,
-    PodImageError
+    VulnerableImage
 )
 
 
@@ -48,43 +47,6 @@ async def namespaces(*, auth, cluster = None):
     return [ns.metadata.name for ns in namespaces.items]
 
 
-def image_report_to_issues(report, image, pods):
-    """
-    Returns an iterable of pod issues for the given image report, image and pods
-    """
-    # If there are no image scanners, just ignore that error
-    if isinstance(report, NoSuitableScanners):
-        return
-    elif isinstance(report, ImageNotFoundException):
-        # Return an error that is "reported by" the system
-        yield ImageNotFoundIssue(affected_images = [image], affected_pods = pods)
-    elif isinstance(report, Exception):
-        # All other exceptions are unexpected and should be re-raised
-        raise report
-    else:
-        # Otherwise, process it as an image report by converting the issues into pod image issues
-        for issue in report.issues:
-            if issue.kind == "ImageVulnerability":
-                yield PodImageVulnerability(
-                    title = issue.title,
-                    severity = issue.severity,
-                    info_url = issue.info_url,
-                    reported_by = issue.reported_by,
-                    affected_pods = pods,
-                    affected_packages = { image: issue.affected_packages }
-                )
-            else:
-                yield PodImageError(
-                    title = issue.title,
-                    severity = issue.severity,
-                    info_url = issue.info_url,
-                    reported_by = issue.reported_by,
-                    detail = issue.detail,
-                    affected_pods = pods,
-                    affected_images = [image]
-                )
-
-
 async def pod_images_scan(pods, scanners):
     """
     Returns an iterable of pod issues for the images in use by the given pods
@@ -107,10 +69,28 @@ async def pod_images_scan(pods, scanners):
         for image in images
     ]
     results = await asyncio.gather(*tasks, return_exceptions = True)
-    return itertools.chain.from_iterable(
-        image_report_to_issues(report, image, pod_images[image])
-        for image, report in zip(images, results)
-    )
+    def issues():
+        # For each report that has at least one issue, yield a vulnerable image issue
+        for image, report in zip(images, results):
+            if isinstance(report, NoSuitableScanners):
+                # If there are no image scanners, just ignore that error
+                continue
+            elif isinstance(report, ImageNotFoundException):
+                # Image not found is "reported by" the system
+                yield ImageNotFoundIssue(
+                    affected_images = [image],
+                    affected_pods = pod_images[image]
+                )
+            elif isinstance(report, Exception):
+                # All other exceptions are unexpected and should be re-raised
+                raise report
+            elif len(report.issues) < 1:
+                # If the report indicates no vulnerabilites, there is nothing to yield
+                continue
+            else:
+                # Otherwise, yield a vulnerable image issue
+                yield VulnerableImage.from_image_report(report, pod_images[image])
+    return issues()
 
 
 @default_scanners

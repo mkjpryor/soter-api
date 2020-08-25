@@ -50,9 +50,6 @@ class ImageVulnerability(Issue):
 
     @property
     def aggregation_key(self):
-        """
-        The aggregation key for the issue.
-        """
         # If the issues refer to the same CVE and package, they should be aggregated
         return super().aggregation_key + (
             self.package_name,
