@@ -10,7 +10,7 @@ from ...models import ScannerStatus, Severity
 from ...exceptions import ScannerUnavailable
 
 from .base import ImageScanner
-from ..models import PackageType, PackageDetail, ImageVulnerability
+from ..models import PackageType, ImageVulnerability
 
 
 class AnchoreEngine(ImageScanner):
@@ -95,26 +95,22 @@ class AnchoreEngine(ImageScanner):
         return (
             ImageVulnerability(
                 title = vuln['vuln'],
-                severity = Severity(vuln['severity']),
+                severity = Severity[vuln['severity'].upper()],
                 info_url = vuln['url'],
                 reported_by = [self.name],
-                affected_packages = [
-                    PackageDetail(
-                        package_name = vuln['package_name'],
-                        package_version = vuln['package_version'],
-                        package_type = (
-                            PackageType.OS
-                            if vuln['package_path'] == "pkgdb"
-                            else PackageType.NON_OS
-                        ),
-                        package_location = (
-                            vuln['package_path']
-                            if vuln['package_path'] != "pkgdb"
-                            else None
-                        ),
-                        fix_version = vuln['fix'] if vuln['fix'] != "None" else None
-                    )
-                ]
+                package_name = vuln['package_name'],
+                package_version = vuln['package_version'],
+                package_type = (
+                    PackageType.OS
+                    if vuln['package_path'] == "pkgdb"
+                    else PackageType.NON_OS
+                ),
+                package_location = (
+                    vuln['package_path']
+                    if vuln['package_path'] != "pkgdb"
+                    else None
+                ),
+                fix_version = vuln['fix'] if vuln['fix'] != "None" else None
             )
             for vuln in response.json()['vulnerabilities']
         )

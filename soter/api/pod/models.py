@@ -10,8 +10,6 @@ from pydantic.dataclasses import dataclass
 
 from ..models import Issue, Error, Severity, Report
 
-from ..image.models import PackageDetail
-
 
 @dataclass(eq = True, frozen = True)
 class Pod:
@@ -49,7 +47,7 @@ class PodImageVulnerability(PodIssue):
     Model for an image vulnerability affecting one or more images in use by one or more pods.
     """
     #: The affected packages, indexed by image digest
-    affected_packages: Dict[str, conset(PackageDetail, min_items = 1)]
+    #affected_packages: Dict[str, conset(PackageDetail, min_items = 1)]
 
     def merge(self, other):
         merged = super().merge(other)

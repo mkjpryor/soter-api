@@ -27,9 +27,9 @@ async def scan(*, image, scanners):
     image_scanners = [s for s in scanners if isinstance(s, ImageScanner)]
     if not image_scanners:
         raise NoSuitableScanners('no image scanners specified')
-    image = await fetch_image(image)
+    image_obj = await fetch_image(image)
     # Scan the image using each image scanner
-    tasks = [scanner.scan(image) for scanner in image_scanners]
+    tasks = [scanner.scan(image_obj) for scanner in image_scanners]
     results = await asyncio.gather(*tasks, return_exceptions = True)
     # Aggregate the issues from each scanner
     # Use a generator to avoid building an interim list
@@ -40,4 +40,8 @@ async def scan(*, image, scanners):
                 yield exception_as_issue(result, scanner.name)
             else:
                 yield from result
-    return ImageReport(image_digest = image.full_digest, issues = issues())
+    return ImageReport(
+        image = image,
+        digest = image_obj.digest,
+        issues = issues()
+    )

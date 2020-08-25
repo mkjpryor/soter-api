@@ -21,10 +21,11 @@ class PackageType(Enum):
     NON_OS = "non-os"
 
 
-@dataclass
-class PackageDetail:
+class ImageVulnerability(Issue):
     """
-    Model for the details of an affected package.
+    Model for a vulnerability in an image.
+
+    The title for an image vulnerability should be the CVE id or equivalent.
     """
     #: The package name that the vulnerability applies to
     package_name: constr(min_length = 1)
@@ -47,42 +48,22 @@ class PackageDetail:
                 assert v is not None, 'required for non-OS packages'
         return v
 
-    def __eq__(self, other):
-        # Two package details are equal if they refer to the same package
-        # We don't worry about the fix version
-        if not isinstance(other, PackageDetail):
-            raise NotImplementedError
-        return (
-            self.package_name == other.package_name and
-            self.package_version == other.package_version and
-            self.package_type == other.package_type and
-            self.package_location == other.package_location
-        )
-
-    def __hash__(self):
-        # Two package details that are equal should have the same hash
-        return hash((
-            type(self),
+    @property
+    def aggregation_key(self):
+        """
+        The aggregation key for the issue.
+        """
+        # If the issues refer to the same CVE and package, they should be aggregated
+        return super().aggregation_key + (
             self.package_name,
             self.package_version,
             self.package_type,
             self.package_location
-        ))
-
-
-class ImageVulnerability(Issue):
-    """
-    Model for a vulnerability in an image.
-
-    The title for an image vulnerability should be the CVE id or equivalent.
-    """
-    #: The packages affected by the vulnerability
-    affected_packages: conset(PackageDetail, min_items = 1)
+        )
 
     def merge(self, other):
-        # Merge the affected packages
         merged = super().merge(other)
-        merged.affected_packages = self.affected_packages | other.affected_packages
+        merged.fix_version = self.fix_version or other.fix_version
         return merged
 
 
@@ -90,5 +71,7 @@ class ImageReport(Report):
     """
     Class for a security report for an image.
     """
+    #: The image as given for analysis
+    image: constr(min_length = 1)
     #: The digest of the image
-    image_digest: constr(min_length = 1)
+    digest: constr(min_length = 1)

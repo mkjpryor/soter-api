@@ -37,12 +37,12 @@ class Severity(Enum):
     """
     Enum of possible severity levels for an issue.
     """
-    NEGLIGIBLE = "Negligible"
-    LOW = "Low"
-    MEDIUM = "Medium"
-    HIGH = "High"
-    UNKNOWN = "Unknown"
-    CRITICAL = "Critical"
+    NEGLIGIBLE = "NEGLIGIBLE"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    UNKNOWN = "UNKNOWN"
+    CRITICAL = "CRITICAL"
 
     def __lt__(self, other):
         # Assume that the severities are defined in order
@@ -67,11 +67,8 @@ class Issue(BaseModel):
 
     @validator('kind', pre = True, always = True)
     def default_kind(cls, kind):
-        # The default kind is the name of the issue class
-        if kind:
-            return kind
-        else:
-            return cls.__name__
+        # The kind is the name of the issue class
+        return cls.__name__
 
     @property
     def aggregation_key(self):
