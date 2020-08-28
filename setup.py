@@ -52,6 +52,7 @@ if __name__ == "__main__":
             # Entrypoint defining Kubernetes authenticators available in the core package
             'soter.api.k8s_auth': [
                 'kubeconfig = soter.api.k8s_auth.kubeconfig:Authenticator',
+                'rancher = soter.api.k8s_auth.rancher:Authenticator',
             ]
         }
     )
