@@ -5,6 +5,7 @@ Module containing JSON-RPC methods for handling pods.
 import asyncio
 import functools
 import itertools
+from pkg_resources import iter_entry_points
 
 from kubernetes_asyncio import client
 
@@ -27,7 +28,17 @@ from .models import (
 
 
 # This defines the methods available to the JSON-RPC dispatcher
-__all__ = ['clusters', 'namespaces', 'scan']
+__all__ = ['auth_kinds', 'clusters', 'namespaces', 'scan']
+
+
+async def auth_kinds():
+    """
+    Return JSON schemas for the available auth kinds.
+    """
+    return {
+        ep.name: ep.load().schema()
+        for ep in iter_entry_points('soter.api.k8s_auth')
+    }
 
 
 async def clusters(*, auth):

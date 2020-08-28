@@ -9,6 +9,8 @@ import yaml
 from kubernetes_asyncio.client import ApiClient, Configuration
 from kubernetes_asyncio.config.kube_config import KubeConfigLoader
 
+from pydantic import constr
+
 from .base import Authenticator as BaseAuthenticator
 from .exceptions import InvalidCluster
 
@@ -17,8 +19,10 @@ class Authenticator(BaseAuthenticator):
     """
     Kubernetes authenticator that consumes the content of a kubeconfig file.
     """
-    def __init__(self, kubeconfig):
-        self.kubeconfig = kubeconfig
+    class Config:
+        title = "Kubeconfig"
+
+    kubeconfig: constr(min_length = 1)
 
     def _get_loader(self):
         return KubeConfigLoader(
@@ -68,3 +72,14 @@ class Authenticator(BaseAuthenticator):
         # Return an API client configured with the config object
         async with ApiClient(configuration = client_config) as api_client:
             yield api_client
+
+    @classmethod
+    def ui_schema(cls):
+        return {
+            "kubeconfig": {
+                "ui:widget": "textarea",
+                "ui:options": {
+                    "rows": 10
+                }
+            }
+        }

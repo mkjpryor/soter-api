@@ -4,8 +4,10 @@ Module containing the base class for Kubernetes authenticators.
 
 import abc
 
+from pydantic import BaseModel
 
-class Authenticator(abc.ABC):
+
+class Authenticator(BaseModel, abc.ABC):
     """
     Base class for all authenticators.
     """
@@ -32,3 +34,17 @@ class Authenticator(abc.ABC):
         """
         Async context manager that yields a configured api client for the given cluster.
         """
+
+    @classmethod
+    def schema(cls, *args, **kwargs):
+        # Inject the UI schema into the generated JSON schema
+        schema = super().schema(*args, **kwargs)
+        schema.update(ui = cls.ui_schema())
+        return schema
+
+    @classmethod
+    def ui_schema(cls):
+        """
+        The UI schema for this authenticator.
+        """
+        return {}
