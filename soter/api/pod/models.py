@@ -38,7 +38,7 @@ class PodIssue(Issue):
         return merged
 
 
-class PodError(PodIssue, Error):
+class PodError(Error, PodIssue):
     """
     Model for a scanner error affecting one or more pods.
     """
@@ -81,7 +81,7 @@ class VulnerableImage(PodIssue):
         )
 
 
-class ImageNotFound(PodIssue, Error):
+class ImageNotFound(PodError):
     """
     Model for an issue representing an image that is not found.
     """

@@ -99,7 +99,7 @@ class Error(Issue):
     """
     Issue type that represents an error in the system.
     """
-    # The default severity for errors is HIGH
+    #: The severity of the error
     severity: Severity = Severity.HIGH
     #: The detail for the error
     detail: constr(min_length = 1)

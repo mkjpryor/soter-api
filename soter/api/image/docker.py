@@ -92,8 +92,11 @@ async def fetch_image(image):
         response = await client.get(
             manifest_url,
             headers = {
-                # Make sure to ask for the V2 schema
-                'Accept': 'application/vnd.docker.distribution.manifest.v2+json'
+                # Make sure to ask for the V2 schemas
+                'Accept': (
+                    'application/vnd.docker.distribution.manifest.v2+json,'
+                    'application/vnd.docker.distribution.manifest.list.v2+json'
+                )
             }
         )
         # If the response is a 401, inspect the WWW-Authenticate header to find out where
