@@ -2,6 +2,7 @@
 Module containing models for data-transfer objects (DTOs) for image scanners.
 """
 
+import re
 from enum import Enum
 from typing import Optional
 
@@ -21,6 +22,23 @@ class PackageType(Enum):
     NON_OS = "non-os"
 
 
+EPOCH_REGEX = re.compile(r'^\d+:')
+
+
+def strip_epoch(v):
+    """
+    Strips the epoch from the given version, if present.
+
+    Some scanners include the epoch and some don't. The only consistent thing to do is to strip it.
+    It is unlikely that there will be the exact same version string in two epochs.
+    """
+    # If the given version number has an epoch, strip it
+    if v and EPOCH_REGEX.match(v):
+        return EPOCH_REGEX.sub('', v, count = 1)
+    else:
+        return v
+
+
 class ImageVulnerability(Issue):
     """
     Model for a vulnerability in an image.
@@ -37,6 +55,9 @@ class ImageVulnerability(Issue):
     package_location: Optional[constr(min_length = 1)] = None
     #: The version at which the vulnerability is fixed, if it exists
     fix_version: Optional[constr(min_length = 1)] = None
+
+    package_version_strip_epoch = validator('package_version', allow_reuse = True)(strip_epoch)
+    fix_version_strip_epoch = validator('fix_version', allow_reuse = True)(strip_epoch)
 
     @validator('package_location')
     def check_package_location(cls, v, values):

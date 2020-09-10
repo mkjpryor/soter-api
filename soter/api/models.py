@@ -22,6 +22,8 @@ class ScannerStatus(BaseModel):
     name: constr(min_length = 1)
     #: The kind of the scanner
     kind: constr(min_length = 1)
+    #: The vendor of the scanner
+    vendor: constr(min_length = 1)
     #: The scanner version
     version: constr(min_length = 1)
     #: Indicates whether the scanner is available
@@ -85,10 +87,17 @@ class Issue(BaseModel):
         # If the aggregation keys match, the issues can be aggregated
         if self.aggregation_key != other.aggregation_key:
             raise ValueError('issues are not compatible for aggregation')
+        # For the severity of the aggregated issue, use the max of the two issues
+        # The exception is if one of the severities is UNKNOWN, in which case we use the other one
+        if self.severity == Severity.UNKNOWN:
+            severity = other.severity
+        elif other.severity == Severity.UNKNOWN:
+            severity = self.severity
+        else:
+            severity = max(self.severity, other.severity)
         return self.copy(
             update = dict(
-                # Use the maximum severity for the aggregated issue
-                severity = max(self.severity, other.severity),
+                severity = severity,
                 # Combine the scanners
                 reported_by = self.reported_by.union(other.reported_by)
             )

@@ -27,6 +27,7 @@ async def scanners():
             ScannerStatus,
             name = scanner.name,
             kind = scanner.kind,
+            vendor = scanner.vendor,
             version = 'unknown',
             available = False
         )

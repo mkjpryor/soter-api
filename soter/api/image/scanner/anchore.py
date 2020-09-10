@@ -13,11 +13,12 @@ from .base import ImageScanner
 from ..models import PackageType, ImageVulnerability
 
 
-class AnchoreEngine(ImageScanner):
+class Scanner(ImageScanner):
     """
     Soter scanner implementation for Anchore Engine.
     """
     kind = "Anchore Engine"
+    vendor = "Anchore"
 
     def __init__(self, name, url, username, password, poll_interval = 2.0):
         super().__init__(name)
@@ -58,6 +59,7 @@ class AnchoreEngine(ImageScanner):
         return ScannerStatus(
             name = self.name,
             kind = self.kind,
+            vendor = self.vendor,
             version = version,
             available = available,
             message = message,

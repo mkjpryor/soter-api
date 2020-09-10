@@ -19,6 +19,7 @@ class Image(namedtuple('Image', [
     'tag',
     'digest',
     'manifest',
+    'authorization',
     'created'
 ])):
     """
@@ -30,6 +31,7 @@ class Image(namedtuple('Image', [
       tag: The tag for the image. Can be ``None`` if there is no tag.
       digest: The digest for the image.
       manifest: The manifest for the image.
+      authorization: The authorization header to use to fetch layers.
       created: The datetime that the image was created.
     """
     @property
@@ -40,6 +42,9 @@ class Image(namedtuple('Image', [
     @property
     def full_digest(self):
         return f'{self.registry}/{self.repository}@{self.digest}'
+
+    def layer_uri(self, digest):
+        return f"https://{self.registry}/v2/{self.repository}/blobs/{digest}"
 
 
 #: Regex used to parse the www-authenticate header for auth information
@@ -107,8 +112,9 @@ async def fetch_image(image):
             response = await client.get(token_url)
             response.raise_for_status()
             token = response.json()['token']
+            authorization_header = f'Bearer {token}'
             # Make sure that future requests use the token
-            client.headers['Authorization'] = f'Bearer {token}'
+            client.headers['Authorization'] = authorization_header
             # Fetch the manifest using the token
             response = await client.get(
                 manifest_url,
@@ -149,4 +155,4 @@ async def fetch_image(image):
         response.raise_for_status()
         created = dateutil_parse(response.json()['created'])
     # Return the image object
-    return Image(registry, repository, tag, digest, manifest, created)
+    return Image(registry, repository, tag, digest, manifest, authorization_header, created)
