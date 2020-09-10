@@ -123,6 +123,9 @@ async def fetch_image(image):
                     'Accept': 'application/vnd.docker.distribution.manifest.v2+json'
                 }
             )
+        else:
+            # No authorization was required
+            authorization_header = None
         # When a repository isn't accessible, the second response is a 401 (could exist but be private)
         if response.status_code in {401, 404}:
             raise ImageNotFound(original_image)

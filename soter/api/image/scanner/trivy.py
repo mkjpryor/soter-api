@@ -71,17 +71,20 @@ class Scanner(ImageScanner):
     async def scan(self, image):
         async with Client(Transport(self.endpoint)) as client:
             result = await client.call("trivy.image_scan", image = image.full_digest)
-        return (
-            ImageVulnerability(
-                title = vuln['VulnerabilityID'],
-                severity = Severity[vuln['Severity'].upper()],
-                info_url = self.select_reference(vuln.get('References')),
-                reported_by = [self.name],
-                package_name = vuln['PkgName'],
-                package_version = vuln['InstalledVersion'],
-                package_type = PackageType.OS,
-                package_location = None,
-                fix_version = vuln.get('FixedVersion')
+        if result:
+            return (
+                ImageVulnerability(
+                    title = vuln['VulnerabilityID'],
+                    severity = Severity[vuln['Severity'].upper()],
+                    info_url = self.select_reference(vuln.get('References')),
+                    reported_by = [self.name],
+                    package_name = vuln['PkgName'],
+                    package_version = vuln['InstalledVersion'],
+                    package_type = PackageType.OS,
+                    package_location = None,
+                    fix_version = vuln.get('FixedVersion')
+                )
+                for vuln in result[0]['Vulnerabilities']
             )
-            for vuln in result[0]['Vulnerabilities']
-        )
+        else:
+            return ()
