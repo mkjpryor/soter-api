@@ -29,7 +29,7 @@ async def scan(*, image, scanners):
         raise NoSuitableScanners('no image scanners specified')
     image_obj = await fetch_image(image)
     # Scan the image using each image scanner
-    tasks = [scanner.scan(image_obj) for scanner in image_scanners]
+    tasks = [scanner.scan_image(image_obj) for scanner in image_scanners]
     results = await asyncio.gather(*tasks, return_exceptions = True)
     # Aggregate the issues from each scanner
     # Use a generator to avoid building an interim list

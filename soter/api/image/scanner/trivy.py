@@ -68,7 +68,7 @@ class Scanner(ImageScanner):
         # By default, return the first reference
         return next(iter(references), None)
 
-    async def scan(self, image):
+    async def scan_image(self, image):
         async with Client(Transport(self.endpoint)) as client:
             result = await client.call("trivy.image_scan", image = image.full_digest)
         if result:

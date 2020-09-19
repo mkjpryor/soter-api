@@ -18,7 +18,7 @@ class ImageScanner(Scanner):
     Base class for an image scanner.
     """
     @abc.abstractmethod
-    async def scan(self, image: Image) -> List[ImageVulnerability]:
+    async def scan_image(self, image: Image) -> List[ImageVulnerability]:
         """
         Scan the given image and return a list of vulnerabilities.
 

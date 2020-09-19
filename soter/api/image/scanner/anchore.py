@@ -66,7 +66,7 @@ class Scanner(ImageScanner):
             properties = properties
         )
 
-    async def scan(self, image):
+    async def scan_image(self, image):
         async with httpx.AsyncClient(auth = self.auth) as client:
             # First, submit the image
             response = await client.post(
