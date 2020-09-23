@@ -18,18 +18,14 @@ from .models import ImageReport
 __all__ = ['scan']
 
 
-@default_scanners
+@default_scanners(ImageScanner)
 async def scan(*, image, scanners):
     """
     Get a vulnerability report for the given image.
     """
-    # First, filter the scanners to just image scanners
-    image_scanners = [s for s in scanners if isinstance(s, ImageScanner)]
-    if not image_scanners:
-        raise NoSuitableScanners('no image scanners specified')
     image_obj = await fetch_image(image)
     # Scan the image using each image scanner
-    tasks = [scanner.scan_image(image_obj) for scanner in image_scanners]
+    tasks = [scanner.scan_image(image_obj) for scanner in scanners]
     results = await asyncio.gather(*tasks, return_exceptions = True)
     # Aggregate the issues from each scanner
     # Use a generator to avoid building an interim list

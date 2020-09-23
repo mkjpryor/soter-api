@@ -3,6 +3,8 @@ Module providing a Soter image scanning backend for Trivy.
 """
 
 import asyncio
+import itertools
+import re
 
 from jsonrpc.client import Client
 from jsonrpc.client.transport.websocket import Transport
@@ -25,6 +27,9 @@ PREFERRED_REFERENCES = [
     'python.org',
     'oracle.com',
 ]
+
+# Super-simple regex to extract a URL
+URL_REGEX = re.compile(r'(https?://\S+)')
 
 
 class Scanner(ImageScanner):
@@ -58,15 +63,20 @@ class Scanner(ImageScanner):
         """
         Extracts the preferred URL from the references for a vulnerability.
         """
-        if not references:
-            return None
+        # Some Trivy references aren't just URLs, but do have URLs embedded in them
+        # So extract the urls from the references
+        reference_urls = list(itertools.chain.from_iterable(
+            URL_REGEX.findall(reference)
+            for reference in references
+        ))
+        # Return one of the preferred URLs if possible
         for pref in PREFERRED_REFERENCES:
             try:
-                return next(ref for ref in references if pref in ref)
+                return next(url for url in reference_urls if pref in url)
             except StopIteration:
                 pass
-        # By default, return the first reference
-        return next(iter(references), None)
+        # By default, return the first url
+        return next(iter(reference_urls), None)
 
     async def scan_image(self, image):
         async with Client(Transport(self.endpoint)) as client:
@@ -76,7 +86,7 @@ class Scanner(ImageScanner):
                 ImageVulnerability(
                     title = vuln['VulnerabilityID'],
                     severity = Severity[vuln['Severity'].upper()],
-                    info_url = self.select_reference(vuln.get('References')),
+                    info_url = self.select_reference(vuln.get('References') or []),
                     reported_by = [self.name],
                     package_name = vuln['PkgName'],
                     package_version = vuln['InstalledVersion'],
