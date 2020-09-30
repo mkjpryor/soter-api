@@ -44,7 +44,8 @@ if __name__ == "__main__":
             'soter.api.rpc': [
                 'info = soter.api.info',
                 'image = soter.api.image.rpc',
-                'pod = soter.api.pod.rpc',
+                'config = soter.api.config.rpc',
+                'namespace = soter.api.namespace.rpc',
             ],
             # Entrypoint defining scanners available in the core package
             'soter.api.scanner': [
