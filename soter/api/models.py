@@ -3,6 +3,7 @@ Module containing models returned by the API.
 """
 
 from collections.abc import MutableSet
+from typing import Optional
 
 from sortedcontainers import SortedDict
 
@@ -69,7 +70,7 @@ class Error(Issue):
     # An error is flagged as unknown because it prevents us from knowing if there is a problem or not
     severity: Severity = Severity.UNKNOWN
     #: The detail for the error
-    detail: constr(min_length = 1)
+    detail: Optional[constr(min_length = 1)]
 
     @property
     def aggregation_key(self):

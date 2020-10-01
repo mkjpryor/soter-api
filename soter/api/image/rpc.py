@@ -4,6 +4,7 @@ Module containing JSON-RPC methods for handling images.
 
 import asyncio
 import itertools
+import logging
 import re
 
 from jsonrpc.model import JsonRpcException, MethodNotFound
@@ -21,6 +22,9 @@ from .models import ImageVulnerability, ImageReport
 
 # This defines the methods available to the JSON-RPC dispatcher
 __all__ = ['scan']
+
+
+logger = logging.getLogger(__name__)
 
 
 async def scan_image(image, name, endpoint):
@@ -47,6 +51,7 @@ async def scan_image(image, name, endpoint):
             words = re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', exc.__class__.__name__)
             title = ' '.join(words).lower().capitalize()
             detail = repr(exc)
+        logger.exception(f'Error scanning image: {name}')
         return True, [
             Error(title = title, detail = detail, reported_by = [name])
         ]
