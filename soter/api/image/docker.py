@@ -8,43 +8,10 @@ from collections import namedtuple
 
 from dateutil.parser import parse as dateutil_parse
 import httpx
-import httpcore
+
+from ...scanner.models import Image
 
 from .exceptions import ImageNotFound
-
-
-class Image(namedtuple('Image', [
-    'registry',
-    'repository',
-    'tag',
-    'digest',
-    'manifest',
-    'authorization',
-    'created'
-])):
-    """
-    Class representing a Docker image.
-
-    Attributes:
-      registry: The registry for the image.
-      repository: The repository for the image.
-      tag: The tag for the image. Can be ``None`` if there is no tag.
-      digest: The digest for the image.
-      manifest: The manifest for the image.
-      authorization: The authorization header to use to fetch layers.
-      created: The datetime that the image was created.
-    """
-    @property
-    def full_tag(self):
-        tag = self.tag or 'unknown'
-        return f'{self.registry}/{self.repository}:{tag}'
-
-    @property
-    def full_digest(self):
-        return f'{self.registry}/{self.repository}@{self.digest}'
-
-    def layer_uri(self, digest):
-        return f"https://{self.registry}/v2/{self.repository}/blobs/{digest}"
 
 
 #: Regex used to parse the www-authenticate header for auth information
@@ -158,4 +125,12 @@ async def fetch_image(image):
         response.raise_for_status()
         created = dateutil_parse(response.json()['created'])
     # Return the image object
-    return Image(registry, repository, tag, digest, manifest, authorization_header, created)
+    return Image(
+        registry = registry,
+        repository = repository,
+        tag = tag,
+        digest = digest,
+        manifest = manifest,
+        authorization = authorization_header,
+        created = created
+    )

@@ -5,7 +5,7 @@ Module containing JSON-RPC methods for handling images.
 import asyncio
 import itertools
 
-from ..util import default_scanners
+from ..util import with_scanners
 from ..exceptions import NoSuitableScanners
 
 from ..image.exceptions import ImageNotFound as ImageNotFoundException
@@ -66,7 +66,7 @@ async def resource_images_scan(resources, scanners):
     # Get a report for each image
     from ..image import rpc as image_rpc
     tasks = [
-        image_rpc.scan(image = image, scanners = [s.name for s in scanners])
+        image_rpc.scan(image = image, scanners = scanners.keys())
         for image in images
     ]
     results = await asyncio.gather(*tasks, return_exceptions = True)
@@ -105,7 +105,7 @@ async def resource_images_scan(resources, scanners):
     return issues()
 
 
-@default_scanners
+@with_scanners
 async def scan(*, resources, scanners):
     """
     Get a security report for the given resource configurations.

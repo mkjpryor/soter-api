@@ -3,6 +3,7 @@ Module containing utilities for Soter API modules.
 """
 
 import inspect
+import os
 import re
 
 import wrapt
@@ -11,7 +12,6 @@ from jsonrpc.model import JsonRpcException
 
 from .exceptions import NoSuitableScanners
 from .models import Error
-from .scanner import Scanner
 
 
 def argspec_scanners_optional(wrapped):
@@ -41,50 +41,25 @@ def argspec_scanners_optional(wrapped):
     )
 
 
-def default_scanners(scanner_type = None):
+@wrapt.decorator(adapter = wrapt.adapter_factory(argspec_scanners_optional))
+def with_scanners(wrapped, instance, args, kwargs):
     """
-    Decorator that injects scanners into the wrapped function. The wrapped function
-    should have an argument called ``scanners`` with no default value.
+    Decorator that filters and injects scanners into the wrapped function.
 
-    The scanners come from settings and are optionally filtered in the request.
+    The wrapped function should have an argument called ``scanners`` with no default value.
 
-    The scanners can also be filtered by type by supplying a type to the decorator.
+    The scanners come from environment variables and are optionally filtered by specifying
+    scanner names in the request.
     """
-    # If a scanner is given but is not a class, it will be the wrapped function
-    if scanner_type and not inspect.isclass(scanner_type):
-        return default_scanners()(scanner_type)
-    # Otherwise, return the decorator
-    @wrapt.decorator(adapter = wrapt.adapter_factory(argspec_scanners_optional))
-    def wrapper(wrapped, instance, args, kwargs):
-        from .conf import settings
-        if 'scanners' in kwargs:
-            # If scanners is given in kwargs, use it even if it is empty
-            requested = kwargs.pop('scanners')
-            scanners = [s for s in settings.scanners if s.name in requested]
-            if not scanners:
-                raise NoSuitableScanners('no valid scanners specified')
-        else:
-            # If no scanners were given, just use all the scanners from settings
-            scanners = settings.scanners
-        # Check the remaining scanners for type, if given
-        if scanner_type:
-            scanners = [s for s in scanners if isinstance(s, scanner_type)]
-            if not scanners:
-                raise NoSuitableScanners('no suitable scanners specified')
-        return wrapped(*args, scanners = scanners, **kwargs)
-    return wrapper
-
-
-def exception_as_issue(exc, scanner_name):
-    """
-    Convert the given exception to an issue for inclusion in reports.
-    """
-    if isinstance(exc, JsonRpcException):
-        title = exc.message
-        detail = exc.data
-    else:
-        # Convert the exception name to words for the title
-        words = re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', exc.__class__.__name__)
-        title = ' '.join(words).lower().capitalize()
-        detail = repr(exc)
-    return Error(title = title, detail = detail, reported_by = [scanner_name])
+    # Discover the scanners from the environment variables
+    scanners = {
+        var_name[14:].lower(): var_value
+        for var_name, var_value in os.environ.items()
+        if var_name.startswith('SOTER_SCANNER_')
+    }
+    requested_scanners = kwargs.pop('scanners', None)
+    if requested_scanners:
+        scanners = { k: v for k, v in scanners.items() if k in requested_scanners }
+        if not scanners:
+            raise NoSuitableScanners('no valid scanners specified')
+    return wrapped(*args, scanners = scanners, **kwargs)

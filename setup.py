@@ -38,6 +38,7 @@ if __name__ == "__main__":
             'kubernetes_asyncio',
             'pyyaml',
             'jsonrpc-asyncio-client[websockets]',
+            'soter-scanner-model',
         ],
         entry_points = {
             # Entrypoint defining RPC modules available in the core package
@@ -46,11 +47,6 @@ if __name__ == "__main__":
                 'image = soter.api.image.rpc',
                 'config = soter.api.config.rpc',
                 'namespace = soter.api.namespace.rpc',
-            ],
-            # Entrypoint defining scanners available in the core package
-            'soter.api.scanner': [
-                'anchore-engine = soter.api.image.scanner.anchore:Scanner',
-                'trivy = soter.api.image.scanner.trivy:Scanner',
             ],
             # Entrypoint defining Kubernetes authenticators available in the core package
             'soter.api.k8s_auth': [

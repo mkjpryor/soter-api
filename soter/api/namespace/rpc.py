@@ -8,8 +8,6 @@ from pkg_resources import iter_entry_points
 
 from kubernetes_asyncio import client
 
-from ..util import default_scanners
-
 from ..k8s_auth import authenticator_from_config
 
 from .k8s import ResourceFetcher
@@ -58,9 +56,8 @@ DEFAULT_KINDS = (
 )
 
 
-@default_scanners
 async def scan(*, auth,
-                  scanners,
+                  scanners = None,
                   cluster = None,
                   all_namespaces = False,
                   namespace = None,
@@ -80,4 +77,4 @@ async def scan(*, auth,
         objects = itertools.chain.from_iterable(await asyncio.gather(*tasks))
     # Scan the discovered resources using the config scanner
     from ..config import rpc as config_rpc
-    return await config_rpc.scan(resources = list(objects), scanners = [s.name for s in scanners])
+    return await config_rpc.scan(resources = list(objects), scanners = scanners)

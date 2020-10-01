@@ -1,55 +1,14 @@
 """
-Module containing models for data-transfer objects (DTOs).
-
-Used to define the interfaces between scanner implementations and the core API.
+Module containing models returned by the API.
 """
 
 from collections.abc import MutableSet
-from enum import Enum
-from functools import total_ordering
-from typing import Any, List, Dict, Optional
 
 from sortedcontainers import SortedDict
 
-from pydantic import BaseModel, HttpUrl, validator, constr, conset
+from pydantic import BaseModel, validator, constr, conset
 
-
-class ScannerStatus(BaseModel):
-    """
-    Model for the status of a scanner.
-    """
-    #: The name of the scanner
-    name: constr(min_length = 1)
-    #: The kind of the scanner
-    kind: constr(min_length = 1)
-    #: The vendor of the scanner
-    vendor: constr(min_length = 1)
-    #: The scanner version
-    version: constr(min_length = 1)
-    #: Indicates whether the scanner is available
-    available: bool
-    #: Message associated with the status
-    message: Optional[constr(min_length = 1)] = None
-    #: Additional properties associated with the scanner, e.g. time of last database update
-    properties: Optional[Dict[str, Any]] = None
-
-
-@total_ordering
-class Severity(Enum):
-    """
-    Enum of possible severity levels for an issue.
-    """
-    NEGLIGIBLE = "NEGLIGIBLE"
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    UNKNOWN = "UNKNOWN"
-    CRITICAL = "CRITICAL"
-
-    def __lt__(self, other):
-        # Assume that the severities are defined in order
-        severities = list(self.__class__)
-        return severities.index(self) < severities.index(other)
+from ..scanner.models import Severity
 
 
 class Issue(BaseModel):
@@ -62,8 +21,6 @@ class Issue(BaseModel):
     title: constr(min_length = 1)
     #: The severity of the issue
     severity: Severity
-    #: A URL to visit for more information, if available
-    info_url: Optional[HttpUrl] = None
     #: The set of scanners that reported the issue
     reported_by: conset(constr(min_length = 1), min_items = 1)
 
@@ -109,7 +66,8 @@ class Error(Issue):
     Issue type that represents an error in the system.
     """
     #: The severity of the error
-    severity: Severity = Severity.HIGH
+    # An error is flagged as unknown because it prevents us from knowing if there is a problem or not
+    severity: Severity = Severity.UNKNOWN
     #: The detail for the error
     detail: constr(min_length = 1)
 
