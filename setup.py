@@ -39,6 +39,7 @@ if __name__ == "__main__":
             'pyyaml',
             'jsonrpc-asyncio-client[websockets]',
             'soter-scanner-model',
+            'aioredis',
         ],
         entry_points = {
             # Entrypoint defining RPC modules available in the core package

@@ -70,7 +70,7 @@ class Error(Issue):
     # An error is flagged as unknown because it prevents us from knowing if there is a problem or not
     severity: Severity = Severity.UNKNOWN
     #: The detail for the error
-    detail: Optional[constr(min_length = 1)]
+    detail: Optional[str] = None
 
     @property
     def aggregation_key(self):
