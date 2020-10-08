@@ -3,7 +3,7 @@ Module containing models for data-transfer objects (DTOs) for pod scanners.
 """
 
 import itertools
-from typing import Set
+from typing import Set, Optional
 
 from pydantic import constr, conset
 from pydantic.dataclasses import dataclass
@@ -80,6 +80,14 @@ class ImageNotFound(ResourceError):
     title: constr(min_length = 1) = "Image not found"
     detail: constr(min_length = 1) = "Image not found in registry"
     reported_by: conset(constr(min_length = 1), min_items = 1) = {'system'}
+
+
+class ConfigurationIssue(ResourceIssue):
+    """
+    Model for an issue that indicates a problem with a resource configuration.
+    """
+    #: The suggested remediation for the issue
+    suggested_remediation: Optional[constr(min_length = 1)] = None
 
 
 class ResourceReport(Report):

@@ -4,20 +4,35 @@ Module containing JSON-RPC methods for handling images.
 
 import asyncio
 import itertools
+import logging
+
+from jsonrpc.model import JsonRpcException, MethodNotFound
+
+from jsonrpc.client import Client
+from jsonrpc.client.transport.websocket import Transport
 
 from ..util import with_scanners
 from ..exceptions import NoSuitableScanners
 
 from ..image.exceptions import ImageNotFound as ImageNotFoundException
 
-from .models import Resource, VulnerableImage, ResourceReport
+from .models import (
+    Resource,
+    VulnerableImage,
+    ConfigurationIssue,
+    ResourceError,
+    ResourceReport
+)
 
 
 # This defines the methods available to the JSON-RPC dispatcher
 __all__ = ['scan']
 
 
-async def resource_images_scan(resources, scanners):
+logger = logging.getLogger(__name__)
+
+
+async def resource_images_scan(resources, scanners, force):
     """
     Returns an iterable of issues using the given scanners for:
 
@@ -66,7 +81,7 @@ async def resource_images_scan(resources, scanners):
     # Get a report for each image
     from ..image import rpc as image_rpc
     tasks = [
-        image_rpc.scan(image = image, scanners = scanners.keys())
+        image_rpc.scan(image = image, scanners = scanners.keys(), force = force)
         for image in images
     ]
     results = await asyncio.gather(*tasks, return_exceptions = True)
@@ -105,12 +120,75 @@ async def resource_images_scan(resources, scanners):
     return issues()
 
 
+async def scan_resources(resources, name, endpoint):
+    """
+    Scan the resources with the given scanner.
+    """
+    try:
+        async with Client(Transport(endpoint)) as client:
+            issues = await client.call("scan_resources", resources)
+    except Exception as exc:
+        # Convert the exception into an issue
+        if isinstance(exc, JsonRpcException):
+            if exc.code == MethodNotFound.code:
+                # If the scanner doesn't support resource scanning, that is fine
+                return []
+            else:
+                # Anything else should be reported
+                title = exc.message
+                detail = exc.data
+        else:
+            # Convert the exception name to words for the title
+            words = re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', exc.__class__.__name__)
+            title = ' '.join(words).lower().capitalize()
+            detail = repr(exc)
+        logger.exception(f'Error scanning resources: {name}')
+        return [
+            ResourceError(
+                title = title,
+                detail = detail,
+                affected_resources = {
+                    Resource(
+                        namespace = r['metadata'].get('namespace', 'default'),
+                        kind = r['kind'],
+                        name = r['metadata']['name']
+                    )
+                    for r in resources
+                },
+                reported_by = [name]
+            )
+        ]
+    else:
+        return (
+            ConfigurationIssue(
+                title = issue['title'],
+                severity = issue['severity'],
+                suggested_remediation = issue.get('suggested_remediation'),
+                affected_resources = [Resource(**r) for r in issue['affected_resources']],
+                reported_by = [name]
+            )
+            for issue in issues
+        )
+
+
+async def scan_resources_all(resources, scanners):
+    """
+    Returns an iterable of configuration issues with the given resources.
+    """
+    # Scan the resources using each configured scanner
+    tasks = [scan_resources(resources, *scanner) for scanner in scanners.items()]
+    return itertools.chain.from_iterable(await asyncio.gather(*tasks))
+
+
 @with_scanners
-async def scan(*, resources, scanners):
+async def scan(*, resources, scanners, force = False):
     """
     Get a security report for the given resource configurations.
     """
-    results = await asyncio.gather(resource_images_scan(resources, scanners))
+    results = await asyncio.gather(
+        resource_images_scan(resources, scanners, force),
+        scan_resources_all(resources, scanners)
+    )
     return ResourceReport(
         # Add information about the resources which were processed
         resources = (

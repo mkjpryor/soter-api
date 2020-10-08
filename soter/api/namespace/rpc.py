@@ -61,7 +61,8 @@ async def scan(*, auth,
                   cluster = None,
                   all_namespaces = False,
                   namespace = None,
-                  kinds = DEFAULT_KINDS):
+                  kinds = DEFAULT_KINDS,
+                  force = False):
     """
     Get a security report for the given cluster and namespace(s).
     """
@@ -77,4 +78,8 @@ async def scan(*, auth,
         objects = itertools.chain.from_iterable(await asyncio.gather(*tasks))
     # Scan the discovered resources using the config scanner
     from ..config import rpc as config_rpc
-    return await config_rpc.scan(resources = list(objects), scanners = scanners)
+    return await config_rpc.scan(
+        resources = list(objects),
+        scanners = scanners,
+        force = force
+    )
